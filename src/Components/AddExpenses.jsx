@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Box, TextField } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import dayjs from "dayjs";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -117,13 +116,15 @@ const AddExpenses = ({ change, setChange, handleClose }) => {
                 onChange={(newDate) => {
                   setDate(newDate.toDate());
                 }}
-                label="Basic date picker"
+                label="Select Date"
               />
             </DemoContainer>
           </LocalizationProvider>
         </Box>
       </Box>
-      <AddBoxOutlinedIcon onClick={addExpensesFunc} sx={{ fontSize: 40 }} />
+      <Button onClick={addExpensesFunc} variant="contained">
+        Add
+      </Button>
     </div>
   );
 };

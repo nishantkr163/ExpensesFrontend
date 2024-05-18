@@ -10,11 +10,22 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import axios from "axios";
 import dayjs from "dayjs";
 import AddExpenses from "./AddExpenses";
+import AddIcon from "@mui/icons-material/Add";
 import Modal from "@mui/material/Modal";
 import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import CloudDoneOutlinedIcon from "@mui/icons-material/CloudDoneOutlined";
-import { Box, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Fab,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
 import Loader from "./Loader";
 import { ToastContainer, toast } from "react-toastify";
 
@@ -28,6 +39,7 @@ export const ExpensesTable = () => {
   const [openEdit, setOpenEdit] = useState(false);
   const [date, setDate] = useState("");
   const [loader, setLoader] = useState(false);
+  const [sortConfig, setSortConfig] = useState({});
 
   const style = {
     position: "absolute",
@@ -148,8 +160,41 @@ export const ExpensesTable = () => {
   const handleOpenEditModal = () => setOpenEdit(true);
   const handleCloseEditModal = () => setOpenEdit(false);
 
+  const handleSort = (monthYear, column) => {
+    const isAsc = sortConfig[monthYear]?.orderBy === column && sortConfig[monthYear]?.order === "asc";
+    setSortConfig({
+      ...sortConfig,
+      [monthYear]: { orderBy: column, order: isAsc ? "desc" : "asc" }
+    });
+  };
+
+  const sortExpenses = (expenses, monthYear) => {
+    const { orderBy, order } = sortConfig[monthYear] || {};
+    if (!orderBy) return expenses;
+
+    return expenses.slice().sort((a, b) => {
+      let aValue = a[orderBy];
+      let bValue = b[orderBy];
+
+      if (orderBy === "spentOn") {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (orderBy === "amount") {
+        aValue = parseFloat(aValue);
+        bValue = parseFloat(bValue);
+      }
+
+      if (aValue < bValue) {
+        return order === "asc" ? -1 : 1;
+      } else if (aValue > bValue) {
+        return order === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
   return (
-    <div style={{ padding: "20px" }}>
+    <div>
       <ToastContainer />
       {loader && <Loader />}
       <Modal
@@ -164,7 +209,9 @@ export const ExpensesTable = () => {
           </Typography>
           <Typography id="modal-modal-description" sx={{ mt: 2 }}>
             <Box sx={{ margin: "auto" }}>
-              <h3 pb={"10px"} size="md">Edit Reason</h3>
+              <h3 pb={"10px"} size="md">
+                Edit Reason
+              </h3>
               <TextField
                 sx={{ width: "100%" }}
                 value={editingExpense.reason}
@@ -176,7 +223,9 @@ export const ExpensesTable = () => {
               />
             </Box>
             <Box sx={{ margin: "auto" }}>
-              <h3 pb={"10px"} size="md">Edit Amount</h3>
+              <h3 pb={"10px"} size="md">
+                Edit Amount
+              </h3>
               <TextField
                 sx={{ width: "100%" }}
                 value={editingExpense.amount}
@@ -189,28 +238,45 @@ export const ExpensesTable = () => {
               />
             </Box>
             <Box sx={{ margin: "auto" }}>
-              <h3 pb={"10px"} size="md">Edit Date</h3>
+              <h3 pb={"10px"} size="md">
+                Edit Date
+              </h3>
               <Box pb={"10px"}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <DatePicker
                     value={dayjs(editingExpense.spentOn, "DD MMM YYYY (ddd)")}
                     onChange={handleDateChange}
-                    label="Basic date picker"
+                    label="Edit Date"
                   />
                 </LocalizationProvider>
               </Box>
             </Box>
-            <Box sx={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CloudDoneOutlinedIcon
-                sx={{ fontSize: 40 }}
-                onClick={handleEditExpense}
-              />
+            <Box
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Button onClick={handleEditExpense} variant="contained">
+                Edit
+              </Button>
             </Box>
           </Typography>
         </Box>
       </Modal>
       <h1>My Expenses</h1>
-      <Button onClick={handleOpen}>Add expense</Button>
+
+      <Fab
+        style={{ position: "fixed", bottom: "30px", right: "30px", zIndex: "99" }}
+        size="large"
+        onClick={handleOpen}
+        color="primary"
+        aria-label="add"
+      >
+        <AddIcon />
+      </Fab>
       <Modal
         open={open}
         onClose={handleClose}
@@ -219,7 +285,11 @@ export const ExpensesTable = () => {
       >
         <Box sx={style}>
           <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-            <AddExpenses handleClose={handleClose} change={change} setChange={setChange} />
+            <AddExpenses
+              handleClose={handleClose}
+              change={change}
+              setChange={setChange}
+            />
           </Typography>
         </Box>
       </Modal>
@@ -238,14 +308,38 @@ export const ExpensesTable = () => {
             <Table variant="striped" colorScheme="teal" size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: "100px" }}>Spent On</TableCell>
-                  <TableCell sx={{ width: "150px" }}>Reason</TableCell>
-                  <TableCell sx={{ width: "100px" }}>Amount</TableCell>
+                  <TableCell sx={{ width: "50px" }}>
+                    <TableSortLabel
+                      active={sortConfig[monthYear]?.orderBy === "spentOn"}
+                      direction={sortConfig[monthYear]?.order || "asc"}
+                      onClick={() => handleSort(monthYear, "spentOn")}
+                    >
+                      Spent On
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sx={{ width: "100px" }}>
+                    <TableSortLabel
+                      active={sortConfig[monthYear]?.orderBy === "reason"}
+                      direction={sortConfig[monthYear]?.order || "asc"}
+                      onClick={() => handleSort(monthYear, "reason")}
+                    >
+                      Reason
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sx={{ width: "100px" }}>
+                    <TableSortLabel
+                      active={sortConfig[monthYear]?.orderBy === "amount"}
+                      direction={sortConfig[monthYear]?.order || "asc"}
+                      onClick={() => handleSort(monthYear, "amount")}
+                    >
+                      Amount
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {expenses.map((expense, index) => (
+                {sortExpenses(expenses, monthYear).map((expense, index) => (
                   <TableRow key={expense._id}>
                     <TableCell>{expense.spentOn}</TableCell>
                     <TableCell>
@@ -277,5 +371,3 @@ export const ExpensesTable = () => {
     </div>
   );
 };
-
-export default ExpensesTable;

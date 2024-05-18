@@ -109,3 +109,10 @@
   left: 20px;
   animation: drop 6s ease-in-out infinite;
 }
+
+.addIcon {
+  position: fixed;
+  z-index: 200;
+  bottom: 30px;
+  right: 30px;
+}

@@ -115,6 +115,7 @@ export const ExpensesTable = () => {
 
   const handleEditExpense = async () => {
     setLoader(true);
+    handleCloseEditModal();
     const formattedDate = dayjs(date || editingExpense.spentOn, "DD MMM YYYY (ddd)").format("DD MMMM YYYY (ddd)");
     const updatedExpense = {
       ...editingExpense,
@@ -131,7 +132,6 @@ export const ExpensesTable = () => {
       toast.error("Error updating expense:", error);
     }
     setEditingIndex(null);
-    handleCloseEditModal();
     setEditingExpense({});
   };
 

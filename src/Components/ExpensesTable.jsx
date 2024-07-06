@@ -14,8 +14,12 @@ import AddIcon from "@mui/icons-material/Add";
 import Modal from "@mui/material/Modal";
 import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { PinInput } from "react-input-pin-code";
+import Divider from '@mui/material/Divider';
+
 import {
   Box,
+  Checkbox,
   Fab,
   Table,
   TableBody,
@@ -37,9 +41,19 @@ export const ExpensesTable = () => {
   const [change, setChange] = useState(true);
   const [open, setOpen] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openPin, setOpenPin] = useState(false);
   const [date, setDate] = useState("");
   const [loader, setLoader] = useState(false);
   const [sortConfig, setSortConfig] = useState({});
+  const [values, setValues] = useState(["", "", "", ""]);
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+  const handleOpenEditModal = () => setOpenEdit(true);
+  const handleCloseEditModal = () => setOpenEdit(false);
+  const handleOpenPinModal = () => setOpenPin(true);
+  const handleClosePinModal = () => setOpenPin(false);
+  const [error, setError] = useState(false);
+  const [action, setAction] = useState("");
 
   const style = {
     position: "absolute",
@@ -51,11 +65,30 @@ export const ExpensesTable = () => {
     border: "2px solid #000",
     boxShadow: 24,
     p: 4,
+    display : 'flex',
+    alignItems : 'center',
+    justifyContent : 'center'
   };
 
   useEffect(() => {
     fetchData();
   }, [change]);
+
+  const handleComplete = (values) => {
+    console.log('PIN complete:', values.join(''));
+    if(values.join('') != '0000') {
+      setError(true)
+      toast.error("Authentication failed! Wrong PIN");
+    } else {
+      handleClosePinModal();
+      toast.success("Authentication Successfull!");
+    }
+  };
+
+  const containerStyle = {
+    border: '2px solid red',
+    borderRadius: '5px',
+  };
 
   const fetchData = async () => {
     setLoader(true);
@@ -63,12 +96,14 @@ export const ExpensesTable = () => {
       const response = await axios.get(`${process.env.REACT_APP_BASE_URL}/get`);
       const expenses = response.data.expenses;
       const groupedExpenses = groupExpensesByMonthYear(expenses);
+      console.log(groupedExpenses,"groupedExpenses")
       setExpenses(groupedExpenses);
       const currentDate = new Date();
       const currentMonthYear = `${currentDate.toLocaleString("en-us", {
         month: "long",
       })} ${currentDate.getFullYear()}`;
-      const currentIndex = Object.keys(groupedExpenses).indexOf(currentMonthYear);
+      const currentIndex =
+        Object.keys(groupedExpenses).indexOf(currentMonthYear);
       setCurrentAccordionIndex(currentIndex);
       setLoader(false);
     } catch (error) {
@@ -84,6 +119,7 @@ export const ExpensesTable = () => {
       if (!groupedExpenses[monthYear]) {
         groupedExpenses[monthYear] = { expenses: [], total: 0 };
       }
+      expense['checked'] = true
       groupedExpenses[monthYear].expenses.push(expense);
       groupedExpenses[monthYear].total += expense.amount;
     });
@@ -116,7 +152,10 @@ export const ExpensesTable = () => {
   const handleEditExpense = async () => {
     setLoader(true);
     handleCloseEditModal();
-    const formattedDate = dayjs(date || editingExpense.spentOn, "DD MMM YYYY (ddd)").format("DD MMMM YYYY (ddd)");
+    const formattedDate = dayjs(
+      date || editingExpense.spentOn,
+      "DD MMM YYYY (ddd)"
+    ).format("DD MMMM YYYY (ddd)");
     const updatedExpense = {
       ...editingExpense,
       spentOn: formattedDate,
@@ -155,17 +194,44 @@ export const ExpensesTable = () => {
     }
   };
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-  const handleOpenEditModal = () => setOpenEdit(true);
-  const handleCloseEditModal = () => setOpenEdit(false);
-
   const handleSort = (monthYear, column) => {
-    const isAsc = sortConfig[monthYear]?.orderBy === column && sortConfig[monthYear]?.order === "asc";
+    const isAsc =
+      sortConfig[monthYear]?.orderBy === column &&
+      sortConfig[monthYear]?.order === "asc";
     setSortConfig({
       ...sortConfig,
-      [monthYear]: { orderBy: column, order: isAsc ? "desc" : "asc" }
+      [monthYear]: { orderBy: column, order: isAsc ? "desc" : "asc" },
     });
+  };
+
+  const totalExpensesInMonth = (monthYear) => {
+    const monthExpenses = expenses[monthYear];
+  
+    const total = monthExpenses.expenses
+      .filter(expense => expense.checked)
+      .reduce((acc, item) => acc + item.amount, 0);
+  
+    console.log(total);
+    setExpenses((prevExpenses) => ({
+      ...prevExpenses,
+      [monthYear]: {
+        ...prevExpenses[monthYear],
+        total: total,
+      },
+    }));
+    setLoader(false);
+  }
+
+  const handleCheckboxChange = (monthYear, expenseId) => {
+    setLoader(true);
+    const updatedExpenses = { ...expenses };
+    const monthExpenses = updatedExpenses[monthYear].expenses;
+    const expenseIndex = monthExpenses.findIndex(exp => exp._id === expenseId);
+    if (expenseIndex !== -1) {
+      monthExpenses[expenseIndex].checked = !monthExpenses[expenseIndex].checked;
+      setExpenses(updatedExpenses);
+    }
+    totalExpensesInMonth(monthYear)
   };
 
   const sortExpenses = (expenses, monthYear) => {
@@ -197,6 +263,7 @@ export const ExpensesTable = () => {
     <div>
       <ToastContainer />
       {loader && <Loader />}
+      {/* Editing modal */}
       <Modal
         open={openEdit}
         onClose={handleCloseEditModal}
@@ -204,9 +271,6 @@ export const ExpensesTable = () => {
         aria-describedby="modal-modal-description"
       >
         <Box sx={style}>
-          <Typography id="modal-modal-title" variant="h6" component="h2">
-            Edit Details
-          </Typography>
           <Typography id="modal-modal-description" sx={{ mt: 2 }}>
             <Box sx={{ margin: "auto" }}>
               <h3 pb={"10px"} size="md">
@@ -222,6 +286,7 @@ export const ExpensesTable = () => {
                 variant="outlined"
               />
             </Box>
+            <Divider />
             <Box sx={{ margin: "auto" }}>
               <h3 pb={"10px"} size="md">
                 Edit Amount
@@ -237,6 +302,7 @@ export const ExpensesTable = () => {
                 variant="outlined"
               />
             </Box>
+            <Divider />
             <Box sx={{ margin: "auto" }}>
               <h3 pb={"10px"} size="md">
                 Edit Date
@@ -269,7 +335,12 @@ export const ExpensesTable = () => {
       <h1>My Expenses</h1>
 
       <Fab
-        style={{ position: "fixed", bottom: "30px", right: "30px", zIndex: "99" }}
+        style={{
+          position: "fixed",
+          bottom: "30px",
+          right: "30px",
+          zIndex: "99",
+        }}
         size="large"
         onClick={handleOpen}
         color="primary"
@@ -341,9 +412,17 @@ export const ExpensesTable = () => {
               <TableBody>
                 {sortExpenses(expenses, monthYear).map((expense, index) => (
                   <TableRow key={expense._id}>
-                    <TableCell>{expense.spentOn}</TableCell>
+                    <TableCell sx={{ padding : "0" }}>
+                      <Box>
+                      <Checkbox
+                          checked={expense.checked}
+                          onChange={() => handleCheckboxChange(monthYear, expense._id)}
+                        />
+                        {expense.spentOn}
+                      </Box>
+                    </TableCell>
                     <TableCell>
-                      <div className="ellipsis-text" style={{ width: "100px" }}>
+                      <div style={{ width: "100px" }}>
                         {expense.reason}
                       </div>
                     </TableCell>
@@ -368,6 +447,31 @@ export const ExpensesTable = () => {
           </AccordionDetails>
         </Accordion>
       ))}
+
+      {/* Pin modal */}
+      <Modal
+        open={openPin}
+        onClose={() => {
+          handleClosePinModal()
+          setValues(["", "", "", ""])
+        }}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+            <PinInput
+              values={values}
+              onComplete={handleComplete}
+              autoFocus={true}
+              mask={true}
+              size={"lg"}
+              validBorderColor={ error ? "rgb(230, 7, 7)" : "rgb(25,135,84)"}
+              onChange={(value, index, values) => setValues(values)}
+            />
+          </Typography>
+        </Box>
+      </Modal>
     </div>
   );
 };
